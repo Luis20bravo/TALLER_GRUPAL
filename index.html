@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Estudiantes</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-4xl bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Formulario de Estudiante</h2>
+
+        <form id="formEstudiante" class="space-y-4 mb-6">
+            <div>
+                <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
+                <input type="text" id="nombre" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            </div>
+            <div>
+                <label for="apellido" class="block text-sm font-medium text-gray-700">Apellido</label>
+                <input type="text" id="apellido" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            </div>
+            <div>
+                <label for="edad" class="block text-sm font-medium text-gray-700">Edad</label>
+                <input type="number" id="edad" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            </div>
+            <div>
+                <label for="materia" class="block text-sm font-medium text-gray-700">Materia</label>
+                <input type="text" id="materia" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+            </div>
+            <button type="submit" id="botonAgregar" class="w-full bg-indigo-600 text-white p-2 rounded-md font-semibold hover:bg-indigo-700">Agregar Estudiante</button>
+        </form>
+
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Lista de Estudiantes</h3>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full table-auto border-collapse">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 border">Nombre</th>
+                        <th class="px-4 py-2 border">Apellido</th>
+                        <th class="px-4 py-2 border">Edad</th>
+                        <th class="px-4 py-2 border">Materia</th>
+                        <th class="px-4 py-2 border">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaEstudiantes">
+                    <!-- Los estudiantes se listarán aquí -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación para Eliminar -->
+    <div id="modalEliminar" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-md max-w-sm w-full">
+            <h3 class="text-lg font-semibold text-gray-800">¿Estás seguro de eliminar este estudiante?</h3>
+            <div class="flex justify-between mt-4">
+                <button id="confirmarEliminar" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Eliminar</button>
+                <button id="cancelarEliminar" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación para Editar -->
+    <div id="modalEditar" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-md max-w-sm w-full">
+            <h3 class="text-lg font-semibold text-gray-800">Estudiante Editado Correctamente</h3>
+            <div class="mt-4">
+                <button id="cerrarModalEditar" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDuaro3LHNui5kGxELrlnH1Q2BKn7aYDtM",
+            authDomain: "tallergrupal-4e1bc.firebaseapp.com",
+            databaseURL: "https://tallergrupal-4e1bc-default-rtdb.firebaseio.com",
+            projectId: "tallergrupal-4e1bc",
+            storageBucket: "tallergrupal-4e1bc.appspot.com",
+            messagingSenderId: "817311734988",
+            appId: "1:817311734988:web:2d6d370ab94662bf873669",
+            measurementId: "G-2TSVYK014R"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Función para agregar un estudiante
+        async function agregarEstudiante(nombre, apellido, edad, materia) {
+            const estudiantesRef = ref(database, 'Estudiantes');
+            const nuevoEstudianteRef = push(estudiantesRef);
+            await set(nuevoEstudianteRef, {
+                nombre,
+                apellido,
+                edad,
+                materia
+            });
+            mostrarEstudiantes(); // Refresca la lista de estudiantes
+        }
+
+        // Función para mostrar estudiantes en una tabla
+        function mostrarEstudiantes() {
+            const estudiantesRef = ref(database, 'Estudiantes');
+            onValue(estudiantesRef, (snapshot) => {
+                const estudiantes = snapshot.val();
+                const tablaEstudiantes = document.getElementById("tablaEstudiantes");
+                tablaEstudiantes.innerHTML = ""; // Limpiar la tabla
+
+
+                // Mostrar cada estudiante en una fila
+                for (const clave in estudiantes) {
+                    const estudiante = estudiantes[clave];
+                    const fila = document.createElement("tr");
+                    fila.innerHTML = `
+                        <td class="px-4 py-2 border">${estudiante.nombre}</td>
+                        <td class="px-4 py-2 border">${estudiante.apellido}</td>
+                        <td class="px-4 py-2 border">${estudiante.edad}</td>
+                        <td class="px-4 py-2 border">${estudiante.materia}</td>
+                        <td class="px-4 py-2 border">
+                            <button class="editar bg-yellow-500 text-white px-4 py-2 rounded mr-2" data-id="${clave}"><i class="fas fa-edit"></i></button>
+                            <button class="eliminar bg-red-500 text-white px-4 py-2 rounded" data-id="${clave}"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    tablaEstudiantes.appendChild(fila);
+                }
+
+                // Agregar listeners para editar y eliminar
+                document.querySelectorAll('.editar').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        const estudiante = estudiantes[id];
+                        editarEstudiante(id, estudiante);
+                    });
+                });
+
+                document.querySelectorAll('.eliminar').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        confirmarEliminar(id);
+                    });
+                });
+            });
+        }
+
+        // Función para editar estudiante
+        function editarEstudiante(id, estudiante) {
+            document.getElementById("nombre").value = estudiante.nombre;
+            document.getElementById("apellido").value = estudiante.apellido;
+            document.getElementById("edad").value = estudiante.edad;
+            document.getElementById("materia").value = estudiante.materia;
+            document.getElementById("botonAgregar").textContent = "Actualizar Estudiante";
+
+            document.getElementById('formEstudiante').onsubmit = function(event) {
+                event.preventDefault();
+                const nuevoNombre = document.getElementById("nombre").value;
+                const nuevoApellido = document.getElementById("apellido").value;
+                const nuevoEdad = document.getElementById("edad").value;
+                const nuevoMateria = document.getElementById("materia").value;
+
+                actualizarEstudiante(id, nuevoNombre, nuevoApellido, nuevoEdad, nuevoMateria);
+            };
+        }
+
+        // Función para actualizar estudiante
+        async function actualizarEstudiante(id, nombre, apellido, edad, materia) {
+            const estudianteRef = ref(database, 'Estudiantes/' + id);
+            await update(estudianteRef, {
+                nombre,
+                apellido,
+                edad,
+                materia
+            });
+            mostrarEstudiantes();
+            // Mostrar modal de éxito
+            document.getElementById("modalEditar").classList.remove("hidden");
+        }
+
+        // Función para eliminar estudiante
+        async function eliminarEstudiante(id) {
+            const estudianteRef = ref(database, 'Estudiantes/' + id);
+            await remove(estudianteRef);
+            mostrarEstudiantes();
+            document.getElementById("modalEliminar").classList.add("hidden");
+        }
+
+        // Confirmar eliminación
+        function confirmarEliminar(id) {
+            document.getElementById("modalEliminar").classList.remove("hidden");
+            document.getElementById("confirmarEliminar").onclick = function() {
+                eliminarEstudiante(id);
+            };
+            document.getElementById("cancelarEliminar").onclick = function() {
+                document.getElementById("modalEliminar").classList.add("hidden");
+            };
+        }
+
+        // Escuchar el evento submit del formulario para agregar un estudiante
+        document.getElementById('formEstudiante').onsubmit = function(event) {
+            event.preventDefault();
+            const nombre = document.getElementById("nombre").value;
+            const apellido = document.getElementById("apellido").value;
+            const edad = document.getElementById("edad").value;
+            const materia = document.getElementById("materia").value;
+            agregarEstudiante(nombre, apellido, edad, materia);
+        };
+
+        // Cerrar el modal de éxito
+        document.getElementById("cerrarModalEditar").onclick = function() {
+            document.getElementById("modalEditar").classList.add("hidden");
+        };
+
+        // Mostrar estudiantes al cargar la página
+        mostrarEstudiantes();
+    </script>
+
+</body>
+</html>
